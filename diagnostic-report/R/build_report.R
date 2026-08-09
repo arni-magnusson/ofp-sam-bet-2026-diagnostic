@@ -2327,6 +2327,7 @@ latex_columns <- function(n) {
 latex_header <- function(x) {
   labels <- c(
     "SB / SB(F=0)" = "$SB_t/SB_{F=0,t}$",
+    "Annual dynamic SB / SB(F=0)" = "$SB_y/SB_{F=0,y}$ (annual dynamic)",
     "SB / SB(MSY)" = "$SB_t/SB_{\\mathrm{MSY}}$",
     "F / F(MSY)" = "$F_t/F_{\\mathrm{MSY}}$",
     "F (year^-1)" = "$F$ (year$^{-1}$)",
@@ -2398,7 +2399,7 @@ recent <- report_data$model$recent
 recent_table <- data.frame(
   Period = recent$Period,
   Years = recent$Years,
-  `SB / SB(F=0)` = sprintf("%.3f", recent$`Dynamic spawning depletion`),
+  `Annual dynamic SB / SB(F=0)` = sprintf("%.3f", recent$`Dynamic spawning depletion`),
   `SB / SB(MSY)` = sprintf("%.3f", recent$`SB/SBMSY`),
   `F / F(MSY)` = sprintf("%.3f", recent$`F/FMSY`),
   `Spawning potential (10^3 t)` = formatC(recent$`Spawning potential (1000 t)`, format = "f", digits = 1, big.mark = ","),
@@ -2562,7 +2563,20 @@ names(release_summary)[1:2] <- c("Tag programme", "Region")
 tables <- list(
   write_table_bundle(fit_table, "model-fit-summary", "Configuration and convergence summary for the diagnostic model.", "Configuration and convergence summary for the diagnostic model."),
   write_table_bundle(objective_table, "objective-components", "Negative-log-likelihood components at the fitted solution.", "Negative-log-likelihood components at the fitted solution."),
-  write_table_bundle(recent_table, "recent-stock-status", "Latest annual and recent four-year diagnostic-model quantities.", "Latest annual and recent four-year diagnostic-model quantities."),
+  write_table_bundle(
+    recent_table,
+    "recent-stock-status",
+    paste0(
+      "Latest annual and recent four-year arithmetic means of diagnostic-model annual quantities. ",
+      "The depletion column uses same-year dynamic SB_y/SB_F=0,y and is not the LRP ",
+      "SB_recent/SB_F=0 statistic or the separate CMM 2025-02 comparison with the 2012--2015 average."
+    ),
+    paste0(
+      "Latest annual and recent four-year arithmetic means of diagnostic-model annual quantities. ",
+      "The depletion column uses same-year dynamic $SB_y/SB_{F=0,y}$ and is not the LRP ",
+      "$SB_{\\mathrm{recent}}/SB_{F=0}$ statistic or the separate CMM 2025-02 comparison with the 2012--2015 average."
+    )
+  ),
   write_table_bundle(hessian_table, "hessian-summary", "Hessian and curvature summary for the fitted model.", "Hessian and curvature summary for the fitted model."),
   write_table_bundle(parameter_bounds_table, "parameter-bounds", "Estimated parameters that MFCL flagged as on or close to a bound in the diagnostic model. Parameter names are descriptive rather than MFCL internal variable names.", "Estimated parameters that MFCL flagged as on or close to a bound in the diagnostic model. Parameter names are descriptive rather than MFCL internal variable names."),
   write_table_bundle(parameter_correlations_table, "parameter-correlations", "Strongest estimated-parameter correlations in the diagnostic model (|r| > 0.95), calculated from the inverse Hessian.", "Strongest estimated-parameter correlations in the diagnostic model ($|r| > 0.95$), calculated from the inverse Hessian."),
@@ -2743,6 +2757,7 @@ html_table <- function(bundle) {
   html_header <- function(x) {
     labels <- c(
       "SB / SB(F=0)" = "<i>SB</i><sub>t</sub> / <i>SB</i><sub>F=0,t</sub>",
+      "Annual dynamic SB / SB(F=0)" = "Annual dynamic <i>SB</i><sub>y</sub> / <i>SB</i><sub>F=0,y</sub>",
       "SB / SB(MSY)" = "<i>SB</i><sub>t</sub> / <i>SB</i><sub>MSY</sub>",
       "F / F(MSY)" = "<i>F</i><sub>t</sub> / <i>F</i><sub>MSY</sub>",
       "F (year^-1)" = "<i>F</i> (year<sup>-1</sup>)",
