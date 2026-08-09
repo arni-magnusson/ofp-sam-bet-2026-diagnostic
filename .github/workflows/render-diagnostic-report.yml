@@ -56,10 +56,12 @@ jobs:
           test -s diagnostic-report-output/tables/parameter-correlations.csv
           test -s diagnostic-report-output/tables/tag-reporting-rate-groups.csv
           test -s diagnostic-report-output/mfclshiny/figures/tag-reporting-rates-active.png
+          test -s diagnostic-report-output/mfclshiny/figures/length-frequency-fit-by-region.png
           test "$(find diagnostic-report-output -path '*/figures/*.png' -type f | wc -l)" -ge 20
           grep -q 'data:image/png;base64,' diagnostic-report-output/bet-2026-diagnostic-report.html
           grep -q 'pacificcommunity.github.io/ofp-sam-bet-2026-diagnostic/bet-2026-likelihood-profile-viewer.html' diagnostic-report-output/bet-2026-diagnostic-report.html
           grep -q 'Number of nodes' diagnostic-report-output/bet-2026-diagnostic-report.html
+          grep -q 'Counts are pooled over years and fisheries for this complementary static summary' diagnostic-report-output/bet-2026-diagnostic-report.html
           grep -q 'CAAL regions' diagnostic-report-output/viewer/bet-2026-likelihood-profile-viewer.html
           grep -q 'Region 1 CAAL fisheries' diagnostic-report-output/viewer/bet-2026-likelihood-profile-viewer.html
           grep -q 'LF region totals' diagnostic-report-output/viewer/bet-2026-likelihood-profile-viewer.html
