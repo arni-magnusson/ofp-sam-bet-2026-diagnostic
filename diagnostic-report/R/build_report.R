@@ -1185,7 +1185,10 @@ srr_points <- merge(
   data.frame(year = srr_rec_year, recruitment = as.numeric(srr_rec)),
   by = "year", all = FALSE, sort = TRUE
 )
-if (!nrow(srr_points) || any(!is.finite(srr_points[, c("adult_biomass", "recruitment")]))) {
+if (
+  !nrow(srr_points) ||
+  any(!is.finite(as.matrix(srr_points[, c("adult_biomass", "recruitment"), drop = FALSE])))
+) {
   stop("The native stock--recruitment pairs are incomplete.", call. = FALSE)
 }
 bh_parameters <- FLR4MFCL::srr(rep_out)
