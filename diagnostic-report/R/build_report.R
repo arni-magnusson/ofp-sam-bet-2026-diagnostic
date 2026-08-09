@@ -1167,34 +1167,27 @@ save_mfcl_figure(
 message("Rendered curated figure: fishery-selectivity-length")
 
 # Stock--recruitment relationship -------------------------------------------
-# Both the annual estimates and the Beverton--Holt curve are regenerated from
-# the current diagnostic payload, rather than transcribed from a static table.
-
-adult_biomass <- flatten_flquant(rep_out@adultBiomass, "adult_biomass")
-recruitment_numbers <- flatten_flquant(rep_out@popN, "recruitment")
-for (field in c("age", "year", "season", "area")) {
-  if (field %in% names(adult_biomass)) {
-    adult_biomass[[field]] <- suppressWarnings(as.integer(adult_biomass[[field]]))
-  }
-  if (field %in% names(recruitment_numbers)) {
-    recruitment_numbers[[field]] <- suppressWarnings(as.integer(recruitment_numbers[[field]]))
-  }
+# Use FLR4MFCL's native paired series so recruitment is matched to spawning
+# biomass with MFCL's one-quarter lag, rather than aggregating same-year slots.
+srr_ssb <- FLR4MFCL::eq_ssb(rep_out)
+srr_rec <- FLR4MFCL::eq_rec(rep_out)
+srr_ssb_year <- suppressWarnings(as.integer(dimnames(srr_ssb)$year))
+srr_rec_year <- suppressWarnings(as.integer(dimnames(srr_rec)$year))
+if (
+  length(srr_ssb_year) != length(srr_ssb) ||
+  length(srr_rec_year) != length(srr_rec) ||
+  any(!is.finite(c(srr_ssb_year, srr_rec_year)))
+) {
+  stop("The native stock--recruitment series has invalid year dimensions.", call. = FALSE)
 }
-srr_biomass <- adult_biomass |>
-  dplyr::group_by(year, season) |>
-  dplyr::summarise(adult_biomass = sum(adult_biomass, na.rm = TRUE), .groups = "drop")
-youngest_age <- min(recruitment_numbers$age, na.rm = TRUE)
-srr_recruitment <- recruitment_numbers |>
-  dplyr::filter(age == youngest_age) |>
-  dplyr::group_by(year, season) |>
-  dplyr::summarise(recruitment = sum(recruitment, na.rm = TRUE), .groups = "drop")
-srr_points <- dplyr::left_join(srr_biomass, srr_recruitment, by = c("year", "season")) |>
-  dplyr::group_by(year) |>
-  dplyr::summarise(
-    adult_biomass = mean(adult_biomass, na.rm = TRUE),
-    recruitment = sum(recruitment, na.rm = TRUE),
-    .groups = "drop"
-  )
+srr_points <- merge(
+  data.frame(year = srr_ssb_year, adult_biomass = as.numeric(srr_ssb)),
+  data.frame(year = srr_rec_year, recruitment = as.numeric(srr_rec)),
+  by = "year", all = FALSE, sort = TRUE
+)
+if (!nrow(srr_points) || any(!is.finite(srr_points[, c("adult_biomass", "recruitment")]))) {
+  stop("The native stock--recruitment pairs are incomplete.", call. = FALSE)
+}
 bh_parameters <- FLR4MFCL::srr(rep_out)
 bh_a <- suppressWarnings(as.numeric(bh_parameters["a"]))
 bh_b <- suppressWarnings(as.numeric(bh_parameters["b"]))
@@ -1206,7 +1199,6 @@ bh_curve <- data.frame(
 )
 bh_curve$recruitment <- bh_curve$adult_biomass * bh_a /
   (bh_b + bh_curve$adult_biomass)
-srr_points$fit_period <- ifelse(srr_points$year >= 1968, "Used in fit", "Not used in fit")
 p_stock_recruitment <- ggplot2::ggplot() +
   ggplot2::geom_line(
     data = bh_curve,
@@ -1214,12 +1206,7 @@ p_stock_recruitment <- ggplot2::ggplot() +
     colour = navy, linewidth = 1.1, lineend = "round"
   ) +
   ggplot2::geom_point(
-    data = srr_points[srr_points$year < 1968, , drop = FALSE],
-    ggplot2::aes(adult_biomass / 1e6, recruitment / 1e6),
-    shape = 21, fill = "white", colour = grey, stroke = 0.72, size = 2.5
-  ) +
-  ggplot2::geom_point(
-    data = srr_points[srr_points$year >= 1968, , drop = FALSE],
+    data = srr_points,
     ggplot2::aes(adult_biomass / 1e6, recruitment / 1e6, fill = year),
     shape = 21, colour = "#24333A", stroke = 0.52, size = 2.6
   ) +
@@ -1860,7 +1847,7 @@ for (group in names(detail_group_labels)) {
       profile_detail_plot(group),
       paste0("likelihood-profile-", suffix, "-detail"),
       width = 7.1,
-      height = max(4.8, 3.4 + 0.16 * length(unique(
+      height = max(5.4, 3.8 + 0.18 * length(unique(
         if (group == "LF") detail$fishery_region[detail$detail_group == "LF"]
         else if (group == "Tag release group") report_data$mappings$tag_release_groups$tag_program
         else detail$detail[detail$detail_group == group]
@@ -2676,7 +2663,7 @@ figure_meta <- list(
   ),
   `stock-recruitment` = list(
     section = "Population dynamics",
-    caption = "Fitted Beverton--Holt stock--recruitment relationship for the 2026 diagnostic model. Filled circles are annual recruitment and adult-biomass estimates used in the fit and are coloured by year; open circles denote years before 1968, which were not used to fit the relationship."
+    caption = "Fitted Beverton--Holt stock--recruitment relationship for the 2026 diagnostic model. Points show annual recruitment and adult-biomass estimates and are coloured by year."
   )
 )
 
