@@ -12,6 +12,11 @@ The committed `bet.ini` is the effective Job 21641 INI and contains
 33-row `selectivity-models/Diagnostic.csv`: all fisheries remain independent,
 with weak non-decreasing penalties 10,000 on F10 and F33.
 
+At run time, `doitall.sh` requires the committed `bet.ini` steepness to match
+the configuration and copies that INI byte-for-byte to `bet.model.ini`; it does
+not rewrite scientific input values. The explicit CSV controls are applied
+directly at Phases 1 and 5 and audited against each resulting PAR file.
+
 `doitall.sh` starts from ordinary `bet.ini -makepar`, applies no seed, jitter or
 fitted checkpoint, and fixes direct negative-binomial `tau=2`. It audits tau,
 steepness, Lorenzen M, DM concentration and Diagnostic selectivity after every

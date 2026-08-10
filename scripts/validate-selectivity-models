@@ -12,11 +12,16 @@ test "$(find "$root/model/selectivity-models" -maxdepth 1 -type f | wc -l)" -eq 
 test -s "$root/model/model-inputs/Diagnostic.conf"
 test -s "$root/model/selectivity-models/Diagnostic.csv"
 
+. "$root/model/model-inputs/Diagnostic.conf"
+test "$MODEL_ID" = Diagnostic
+test "$SELECTIVITY_MODEL" = Diagnostic
+test "$SELECTIVITY_INPUT" = selectivity-models/Diagnostic.csv
+
 ini_steepness=$(awk '
   /^# sv[(]29[)]/ { getline; print $1; found++; exit }
   END { if (found != 1) exit 1 }
 ' "$root/model/bet.ini")
-test "$ini_steepness" = 0.90
+test "$ini_steepness" = "$STEEPNESS"
 
 if grep -Ev '^[[:space:]]*#' "$root/model/doitall.sh" | grep -Eiq 'seed.?23|checkpoint'; then
   echo "Diagnostic doitall contains a seed or checkpoint path." >&2
@@ -53,5 +58,39 @@ printf '%s\n' "$controls" | awk '
          bad_group == 0 ? 0 : 1)
   }
 '
+
+printf '%s\n' "$controls" | awk '
+  FILENAME == ARGV[1] {
+    if (FNR == 1) next
+    split($0, values, ",")
+    fishery=values[1]
+    expected[fishery,16]=values[3]
+    expected[fishery,24]=values[4]
+    expected[fishery,56]=values[5]
+    expected[fishery,57]=values[6]
+    expected[fishery,61]=values[7]
+    expected_rows++
+    next
+  }
+  FILENAME == "-" && NF {
+    fishery=-$1
+    flag=$2
+    if (!(fishery SUBSEP flag in expected) || $3 != expected[fishery,flag]) {
+      print "Generated control does not match explicit selectivity input: " $0 > "/dev/stderr"
+      failures++
+    }
+    observed[fishery,flag]++
+  }
+  END {
+    for (fishery=1; fishery<=33; fishery++) {
+      for (flag_index=1; flag_index<=5; flag_index++) {
+        flag=(flag_index == 1 ? 16 : flag_index == 2 ? 24 : flag_index == 3 ? 56 : flag_index == 4 ? 57 : 61)
+        wanted=(flag == 24 ? 2 : 1)
+        if (observed[fishery,flag] != wanted) failures++
+      }
+    }
+    exit(expected_rows == 33 && failures == 0 ? 0 : 1)
+  }
+' "$root/model/selectivity-models/Diagnostic.csv" -
 
 echo "Diagnostic Job 21641 h=0.90, tau=2, M, DM and selectivity audits passed."
