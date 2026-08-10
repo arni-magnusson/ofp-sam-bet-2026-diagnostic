@@ -30,10 +30,14 @@ to the final PAR restored from the committed Hessian-enriched payload.
 ## Runtime safeguards
 
 The fit writes the tau value into the makepar-generated PAR before Phase 1.
-After every fitted phase it verifies the tau parameterization and value,
-steepness, fixed M, DM settings and the complete 33-fishery selectivity table.
-The controls used by the current script are numerically identical to those used
-by Job 21641; the additional checks do not change the fit.
+All 198 Phase 1/5 selectivity controls are embedded as literal MFCL control
+lines in `doitall.sh`; no model `.conf` or selectivity `.csv` is read at run time. The
+checksum-locked CSV is retained as an independent repository audit, and the
+validator proves all embedded controls match its 33 rows. After every fitted
+phase the script verifies the tau parameterization and value, steepness, fixed
+M, DM settings and the complete 33-fishery selectivity table. The controls are
+numerically identical to those used by Job 21641; the additional checks do not
+change the fit.
 
 ## Reference outputs
 

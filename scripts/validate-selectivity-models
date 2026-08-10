@@ -11,6 +11,8 @@ test "$(find "$root/model/model-inputs" -maxdepth 1 -type f | wc -l)" -eq 1
 test "$(find "$root/model/selectivity-models" -maxdepth 1 -type f | wc -l)" -eq 1
 test -s "$root/model/model-inputs/Diagnostic.conf"
 test -s "$root/model/selectivity-models/Diagnostic.csv"
+test "$(sha256sum "$root/model/selectivity-models/Diagnostic.csv" | awk '{ print $1 }')" = \
+  790e21a01054349a20f4fbbb7db926f6452d059344815a3a9d6a5de51db3310a
 
 . "$root/model/model-inputs/Diagnostic.conf"
 test "$MODEL_ID" = Diagnostic
@@ -40,6 +42,9 @@ controls=$(
     PROGRAM_PATH="$mfcl" ./doitall.sh |
     awk '/^[[:space:]]+-[0-9]+[[:space:]]/ { print }'
 )
+test "$(printf '%s\n' "$controls" | awk 'NF { rows++ } END { print rows + 0 }')" -eq 198
+test "$(printf '%s\n' "$controls" | sha256sum | awk '{ print $1 }')" = \
+  6ebd3aa22d6b88a2504214e2913a65c6b3257249f985482ca4a8981fb72a9c58
 printf '%s\n' "$controls" | awk '
   NF && $2 != 16 && $2 != 24 && $2 != 56 && $2 != 57 && $2 != 61 {
     print "Unexpected Diagnostic selectivity flag: " $0 > "/dev/stderr"
@@ -92,5 +97,44 @@ printf '%s\n' "$controls" | awk '
     exit(expected_rows == 33 && failures == 0 ? 0 : 1)
   }
 ' "$root/model/selectivity-models/Diagnostic.csv" -
+
+# Prove that the native recipe is genuinely standalone. Only the MFCL
+# executable, its native BET inputs, mfcl.cfg and doitall.sh are copied; no
+# model-input config or selectivity CSV is available in this directory.
+temp_root=${TMPDIR:-/tmp}
+temp_root=$(CDPATH= cd -- "$temp_root" && pwd -P)
+minimal_dir=$(mktemp -d "$temp_root/bet-diagnostic-minimal.XXXXXX")
+minimal_dir=$(CDPATH= cd -- "$minimal_dir" && pwd -P)
+case "$minimal_dir" in
+  "$temp_root"/bet-diagnostic-minimal.*) ;;
+  *) echo "Unsafe temporary directory: $minimal_dir" >&2; exit 1 ;;
+esac
+cleanup()
+{
+  case "$minimal_dir" in
+    "$temp_root"/bet-diagnostic-minimal.*)
+      if [ -d "$minimal_dir" ] && [ ! -L "$minimal_dir" ]; then
+        rm -rf -- "$minimal_dir"
+      fi
+      ;;
+  esac
+}
+trap cleanup EXIT HUP INT TERM
+cp "$root/model/bet.age_length" "$root/model/bet.frq" \
+  "$root/model/bet.ini" "$root/model/bet.reg_scaling" \
+  "$root/model/bet.tag" "$root/model/mfcl.cfg" \
+  "$root/model/doitall.sh" "$root/mfclo64" "$minimal_dir/"
+test ! -e "$minimal_dir/model-inputs"
+test ! -e "$minimal_dir/selectivity-models"
+minimal_controls=$(
+  cd "$minimal_dir"
+  SELECTIVITY_PRINT_CONTROLS=1 ./doitall.sh |
+    awk '/^[[:space:]]+-[0-9]+[[:space:]]/ { print }'
+)
+test "$minimal_controls" = "$controls"
+(
+  cd "$minimal_dir"
+  MODEL_STOP_AFTER_PHASE0=1 ./doitall.sh
+)
 
 echo "Diagnostic Job 21641 h=0.90, tau=2, M, DM and selectivity audits passed."

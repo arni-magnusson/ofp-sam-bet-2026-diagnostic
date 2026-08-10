@@ -16,9 +16,12 @@ the `tau=1` branch.
 | Composition likelihood | Dirichlet-multinomial, Nmax 25, eight groups, concentration 7 fixed and group effects estimated |
 | Tag mixing | `K=0.20` |
 
-The fitting script audits steepness, tau, natural mortality, DM concentration
-and every Diagnostic selectivity flag after each fitted phase. A mismatch stops
-the run before the next phase.
+The fitting script contains the complete 33-fishery Phase 1 and Phase 5
+selectivity controls directly, and audits steepness, tau, natural mortality,
+DM concentration and every Diagnostic selectivity flag after each fitted
+phase. It does not source a model `.conf` or selectivity `.csv` at run time; those
+files are checksum-locked documentation checked by the repository validator.
+A mismatch stops the run before the next phase.
 
 ## Run
 
