@@ -36,6 +36,12 @@ the committed fitted result directly:
 ./run-final
 ```
 
+The repository is a complete native reproduction bundle: it includes the
+MFCL executable, the explicit runnable inputs and the exact Job 21641
+`results/reference/final.par`. `./run-final` verifies its SHA-256, archived
+objective and MGC, then requires a native zero-iteration evaluation to return
+the same objective and 1,997 active parameters.
+
 To restore the compact MFCL Shiny payload without running MFCL:
 
 ```sh

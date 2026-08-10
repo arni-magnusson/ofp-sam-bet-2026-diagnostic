@@ -25,19 +25,68 @@ if [[ $mode == fit ]]; then
   fi
 elif [[ $mode == final ]]; then
   cp "$repo_root/results/reference/final.par" final.par
+  expected_par_sha=21dcaea9db8c89ddc8c29fa3c3a5e514b50bef6e26587c168c00c05f35fbebc3
+  expected_objective=90814.8573966593
+  expected_mgc=9.67941148140092e-05
+  expected_npars=1997
+
+  observed_par_sha=$(sha256sum final.par | awk '{print $1}')
+  reference_objective=$(awk '/^# Objective function value/{getline; print $1; exit}' final.par)
+  reference_npars=$(awk '/^# The number of parameters/{getline; print $1; exit}' final.par)
+  reference_mgc=$(awk '/^# Maximum magnitude gradient value/{getline; print $1; exit}' final.par)
+  if [[ $observed_par_sha != "$expected_par_sha" || $reference_npars != "$expected_npars" ]]; then
+    echo "Reference final.par identity or parameter-count check failed." >&2
+    exit 4
+  fi
+  if ! awk -v observed="$reference_objective" -v expected="$expected_objective" \
+      'BEGIN { d=observed-expected; if (d<0) d=-d; exit(d <= 1e-8 ? 0 : 1) }'; then
+    echo "Reference final.par objective does not match the archived fit summary." >&2
+    exit 4
+  fi
+  if ! awk -v observed="$reference_mgc" -v expected="$expected_mgc" \
+      'BEGIN { d=observed-expected; if (d<0) d=-d; exit(d <= 1e-12 ? 0 : 1) }'; then
+    echo "Reference final.par MGC does not match the archived fit summary." >&2
+    exit 4
+  fi
+
   set +e
   "$program_path" bet.frq final.par evaluated.par -file - 2>&1 <<'MFCL_SWITCHES' | tee mfcl-final.log
   1 1 0
   1 246 1
 MFCL_SWITCHES
-  status=${PIPESTATUS[0]}
+  pipeline_status=("${PIPESTATUS[@]}")
+  status=${pipeline_status[0]}
+  tee_status=${pipeline_status[1]}
   set -e
   if [[ $status -ne 0 && $status -ne 3 ]]; then
     echo "MFCL final-PAR evaluation failed with status $status." >&2
     exit "$status"
   fi
-  test -s evaluated.par
-  echo "Reference final.par evaluated successfully."
+  if [[ $tee_status -ne 0 ]]; then
+    echo "Could not write the native final-PAR evaluation log (tee status $tee_status)." >&2
+    exit "$tee_status"
+  fi
+  if [[ ! -s evaluated.par ]]; then
+    echo "Native final-PAR evaluation did not produce evaluated.par." >&2
+    exit 4
+  fi
+  evaluated_objective=$(awk '/^# Objective function value/{getline; print $1; exit}' evaluated.par)
+  evaluated_npars=$(awk '/^# The number of parameters/{getline; print $1; exit}' evaluated.par)
+  if [[ $evaluated_npars != "$expected_npars" ]]; then
+    echo "Native evaluation returned $evaluated_npars parameters; expected $expected_npars." >&2
+    exit 4
+  fi
+  if ! awk -v observed="$evaluated_objective" -v expected="$reference_objective" \
+      'BEGIN { d=observed-expected; if (d<0) d=-d; exit(d <= 1e-8 ? 0 : 1) }'; then
+    echo "Native evaluation objective $evaluated_objective does not match final.par $reference_objective." >&2
+    exit 4
+  fi
+  if [[ $(sha256sum final.par | awk '{print $1}') != "$expected_par_sha" ]]; then
+    echo "Native evaluation modified the reference final.par input." >&2
+    exit 4
+  fi
+  printf 'Reference final.par evaluated successfully: objective %s; MGC %s; %s parameters.\n' \
+    "$evaluated_objective" "$reference_mgc" "$evaluated_npars"
   "$repo_root/restore-hessian" "$run_dir"
 else
   echo "Unknown run mode: $mode" >&2
