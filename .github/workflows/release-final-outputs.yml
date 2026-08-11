@@ -75,6 +75,7 @@ jobs:
           cp model/doitall.sh "dist/stage/$standalone_name/doitall.sh"
           cp standalone/run-final "dist/stage/$standalone_name/run-final"
           cp standalone/README.txt "dist/stage/$standalone_name/README.txt"
+          cp PROVENANCE.md "dist/stage/$standalone_name/PROVENANCE.md"
           chmod +x \
             "dist/stage/$standalone_name/mfclo64" \
             "dist/stage/$standalone_name/run-final" \
@@ -84,9 +85,10 @@ jobs:
             cd "dist/stage/$standalone_name"
             ./run-final > standalone-final-evaluation.log
             grep -F "Total func      90814.857396659" mfcl-final.log
-            test -s evaluated.par
+            test -s 11.par
             test -s ests.rep
-            test -s plot-evaluated.par.rep
+            test -s plot-11.par.rep
+            test -s plotq0-11.par.rep
             test -s catch.rep
             test -s tag.rep
             sh -n run-final doitall.sh
@@ -150,7 +152,7 @@ jobs:
             '' \
             'The archive also includes the frozen Job 21641 final PAR, inputs, completed Hessian diagnostics, compact R payload, executable and reproduction scripts.' \
             '' \
-            'A separate standalone ZIP places the executable, Diagnostic final PAR, all inputs and run scripts in one directory. Use `./doitall.sh` to reproduce Job 21641 from ordinary makepar initialization with h=0.90 and tau=2 fixed.' \
+            'A separate standalone ZIP places the executable, Diagnostic final PAR, all inputs, complete final REP outputs and run scripts in one directory. Its one-evaluation REP outputs are checksum-identical to Kflow Job 21641. Use `./doitall.sh` to reproduce the fit from ordinary makepar initialization with h=0.90 and tau=2 fixed.' \
             '' \
             "Source commit: $GITHUB_SHA" \
             > "$notes"
