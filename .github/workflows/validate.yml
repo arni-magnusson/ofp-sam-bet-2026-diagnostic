@@ -14,7 +14,7 @@ jobs:
         run: ./verify
       - name: Check scripts
         run: |
-          sh -n doitall run-final restore-hessian verify scripts/run-model scripts/validate-selectivity-models model/doitall.sh standalone/run-final
+          sh -n doitall run-final restore-hessian verify scripts/run-model scripts/validate-selectivity-models scripts/build-standalone-release model/doitall.sh standalone/run-final
           bash -n scripts/container-run run.sh diagnostic-report/run.sh
           python -m py_compile diagnostic-report/submit.py
       - name: Confirm Job 21641 controls

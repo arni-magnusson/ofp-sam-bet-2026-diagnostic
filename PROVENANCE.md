@@ -29,7 +29,13 @@ to the final PAR restored from the committed Hessian-enriched payload.
 
 ## Runtime safeguards
 
-The fit writes the tau value into the makepar-generated PAR before Phase 1.
+The original Job 21641 Phase-0 sequence is retained: the effective public INI
+is copied byte-for-byte to `bet.model.ini`, MFCL writes `00.par` with
+`-makepar`, and the fixed tau and DM initial values are materialized in
+`00.fixed.par` before Phase 1. These are run-local generated files, not inputs
+loaded from another directory. MFCL's INI format cannot store
+`fish_pars(22)=7`, so removing this explicit Phase-0 step would change the
+model.
 All 198 Phase 1/5 selectivity controls are embedded as literal MFCL control
 lines in `doitall.sh`; no model `.conf` or selectivity `.csv` is read at run time. The
 checksum-locked CSV is retained as an independent repository audit, and the

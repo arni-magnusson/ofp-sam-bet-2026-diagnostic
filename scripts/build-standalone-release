@@ -1,0 +1,149 @@
+#!/bin/sh
+set -eu
+
+if [ "$#" -ne 1 ]; then
+  echo "Usage: scripts/build-standalone-release /absolute/output/directory" >&2
+  exit 2
+fi
+
+root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
+if ! git -C "$root" diff --quiet || ! git -C "$root" diff --cached --quiet; then
+  echo "Tracked files must be clean before building a release asset." >&2
+  exit 2
+fi
+output_dir=$1
+case "$output_dir" in
+  /*) ;;
+  *) echo "Output directory must be absolute: $output_dir" >&2; exit 2 ;;
+esac
+mkdir -p -- "$output_dir"
+output_dir=$(CDPATH= cd -- "$output_dir" && pwd -P)
+
+package=bet-2026-diagnostic-standalone
+for target in \
+  "$output_dir/$package.zip" \
+  "$output_dir/$package.zip.sha256" \
+  "$output_dir/$package.contents.sha256"
+do
+  if [ -e "$target" ] || [ -L "$target" ]; then
+    echo "Refusing to overwrite existing output: $target" >&2
+    exit 2
+  fi
+done
+
+"$root/verify"
+sh -n "$root/model/doitall.sh" "$root/standalone/run-final"
+
+temp_base=${TMPDIR:-/tmp}
+temp_base=$(CDPATH= cd -- "$temp_base" && pwd -P)
+work=$(mktemp -d "$temp_base/bet-diagnostic-standalone.XXXXXX")
+work=$(CDPATH= cd -- "$work" && pwd -P)
+case "$work" in
+  "$temp_base"/bet-diagnostic-standalone.*) ;;
+  *) echo "Unsafe temporary directory: $work" >&2; exit 2 ;;
+esac
+cleanup()
+{
+  case "$work" in
+    "$temp_base"/bet-diagnostic-standalone.*)
+      if [ -d "$work" ] && [ ! -L "$work" ]; then
+        rm -rf -- "$work"
+      fi
+      ;;
+  esac
+}
+trap cleanup EXIT HUP INT TERM
+
+stage=$work/stage/$package
+evaluation=$work/evaluation
+phase0=$work/phase0
+mkdir -p -- "$stage" "$evaluation" "$phase0"
+
+for input in bet.age_length bet.frq bet.ini bet.reg_scaling bet.tag mfcl.cfg
+do
+  cp -- "$root/model/$input" "$stage/$input"
+done
+cp -- "$root/model/doitall.sh" "$stage/doitall.sh"
+cp -- "$root/mfclo64" "$stage/mfclo64"
+cp -- "$root/results/reference/final.par" "$stage/final.par"
+cp -- "$root/standalone/run-final" "$stage/run-final"
+cp -- "$root/standalone/README.txt" "$stage/README.txt"
+cp -- "$root/PROVENANCE.md" "$stage/PROVENANCE.md"
+chmod 755 "$stage/doitall.sh" "$stage/mfclo64" "$stage/run-final"
+
+# Prove the exact refit recipe is self-contained before doing any evaluation.
+for input in bet.age_length bet.frq bet.ini bet.reg_scaling bet.tag mfcl.cfg \
+  mfclo64 doitall.sh
+do
+  cp -- "$stage/$input" "$phase0/$input"
+done
+chmod 755 "$phase0/mfclo64" "$phase0/doitall.sh"
+(
+  cd "$phase0"
+  MODEL_STOP_AFTER_PHASE0=1 ./doitall.sh > "$work/phase0-validation.log" 2>&1
+  test -s 00.par
+  test -s 00.fixed.par
+  test -s bet.model.ini
+  cmp -s bet.ini bet.model.ini
+)
+
+# Run the fitted PAR in a separate scratch directory. Only the five canonical
+# final reports and the validation log are copied into the clean package.
+for input in bet.age_length bet.frq bet.ini bet.reg_scaling bet.tag mfcl.cfg \
+  mfclo64 final.par run-final
+do
+  cp -- "$stage/$input" "$evaluation/$input"
+done
+chmod 755 "$evaluation/mfclo64" "$evaluation/run-final"
+(
+  cd "$evaluation"
+  ./run-final > "$work/standalone-final-evaluation.log" 2>&1
+)
+for report in plot-11.par.rep plotq0-11.par.rep ests.rep catch.rep tag.rep
+do
+  test -s "$evaluation/$report"
+  cp -- "$evaluation/$report" "$stage/$report"
+done
+cp -- "$work/standalone-final-evaluation.log" \
+  "$stage/standalone-final-evaluation.log"
+
+commit=$(git -C "$root" rev-parse HEAD)
+cat > "$stage/BUILD-INFO.txt" <<EOF
+BET 2026 Diagnostic standalone
+Repository commit: $commit
+Kflow source job: 21641 (j470a734773c)
+Kflow archive SHA-256: de732634023a558c38fa364de9ea43c8e37eee197622c8e3d386081eeeaa48c5
+MFCL executable SHA-256: 8995f72019869863c1d1c0b4f44fc6a6268d1f79031f5bc79dc354ee10f0a63e
+Final PAR SHA-256: 21dcaea9db8c89ddc8c29fa3c3a5e514b50bef6e26587c168c00c05f35fbebc3
+The final PAR was evaluated once during this build; all five retained REP
+files were required to match the original Job 21641 files byte-for-byte.
+EOF
+
+(
+  cd "$stage"
+  sha256sum final.par > final.par.sha256
+  find . -type f ! -name SHA256SUMS -print0 \
+    | LC_ALL=C sort -z \
+    | xargs -0 sha256sum \
+    > SHA256SUMS
+  sha256sum -c SHA256SUMS
+  test "$(find . -maxdepth 1 -type f | wc -l)" -eq 21
+)
+
+(
+  cd "$work/stage"
+  find "$package" -type f -print0 \
+    | LC_ALL=C sort -z \
+    | xargs -0 sha256sum \
+    > "$output_dir/$package.contents.sha256"
+  find "$package" -type f -print \
+    | LC_ALL=C sort \
+    | zip -q -9 -X "$output_dir/$package.zip" -@
+)
+(
+  cd "$output_dir"
+  sha256sum "$package.zip" > "$package.zip.sha256"
+)
+
+printf 'Built %s\n' "$output_dir/$package.zip"
+printf 'Files: 21 (10 direct runtime inputs/helpers, 5 canonical REP outputs, 6 documentation/audit files)\n'

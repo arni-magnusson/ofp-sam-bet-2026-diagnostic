@@ -65,58 +65,7 @@ jobs:
             sha256sum "$package_name.zip" > "$package_name.zip.sha256"
           )
 
-          mkdir -p "dist/stage/$standalone_name"
-          cp -a model/. "dist/stage/$standalone_name/"
-          rm -f \
-            "dist/stage/$standalone_name/MANIFEST.sha256" \
-            "dist/stage/$standalone_name/README.md"
-          cp mfclo64 "dist/stage/$standalone_name/mfclo64"
-          cp results/reference/final.par "dist/stage/$standalone_name/final.par"
-          cp model/doitall.sh "dist/stage/$standalone_name/doitall.sh"
-          cp standalone/run-final "dist/stage/$standalone_name/run-final"
-          cp standalone/README.txt "dist/stage/$standalone_name/README.txt"
-          cp PROVENANCE.md "dist/stage/$standalone_name/PROVENANCE.md"
-          chmod +x \
-            "dist/stage/$standalone_name/mfclo64" \
-            "dist/stage/$standalone_name/run-final" \
-            "dist/stage/$standalone_name/doitall.sh"
-
-          (
-            cd "dist/stage/$standalone_name"
-            ./run-final > standalone-final-evaluation.log
-            grep -F "Total func      90814.857396659" mfcl-final.log
-            test -s 11.par
-            test -s ests.rep
-            test -s plot-11.par.rep
-            test -s plotq0-11.par.rep
-            test -s catch.rep
-            test -s tag.rep
-            sh -n run-final doitall.sh
-            if grep -Eiq 'seed.?23|doitall-core' doitall.sh; then
-              echo "The tau=2 doitall.sh contains seed-23 or external-core logic." >&2
-              exit 1
-            fi
-            grep -F '1 305 1' doitall.sh
-            grep -F -- '-999 43 0' doitall.sh
-            grep -F 'audit_tau2_fixed 11.par' doitall.sh
-            sha256sum final.par > final.par.sha256
-            find . -type f ! -name SHA256SUMS -print0 \
-              | LC_ALL=C sort -z \
-              | xargs -0 sha256sum \
-              > SHA256SUMS
-          )
-          (
-            cd dist/stage
-            find "$standalone_name" -type f -print0 \
-              | LC_ALL=C sort -z \
-              | xargs -0 sha256sum \
-              > "../$standalone_name.contents.sha256"
-            zip -q -9 -r "../$standalone_name.zip" "$standalone_name"
-          )
-          (
-            cd dist
-            sha256sum "$standalone_name.zip" > "$standalone_name.zip.sha256"
-          )
+          ./scripts/build-standalone-release "$PWD/dist"
 
           echo "package_name=$package_name" >> "$GITHUB_OUTPUT"
           echo "standalone_name=$standalone_name" >> "$GITHUB_OUTPUT"
@@ -152,7 +101,7 @@ jobs:
             '' \
             'The archive also includes the frozen Job 21641 final PAR, inputs, completed Hessian diagnostics, compact R payload, executable and reproduction scripts.' \
             '' \
-            'A separate standalone ZIP places the executable, Diagnostic final PAR, all inputs, complete final REP outputs and run scripts in one directory. Its one-evaluation REP outputs are checksum-identical to Kflow Job 21641. Use `./doitall.sh` to reproduce the fit from ordinary makepar initialization with h=0.90 and tau=2 fixed.' \
+            'A separate minimal standalone ZIP places the executable, exact Diagnostic final PAR, required native inputs, complete final REP outputs and run scripts in one directory. Its one-evaluation REP outputs are checksum-identical to Kflow Job 21641. Use `./doitall.sh` to reproduce the exact Job 21641 makepar and Phase 1–11 fitting sequence with h=0.90 and tau=2 fixed.' \
             '' \
             "Source commit: $GITHUB_SHA" \
             > "$notes"
