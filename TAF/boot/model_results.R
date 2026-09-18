@@ -17,6 +17,5 @@ key <- c("11.par", "bet.age_length", "bet.frq", "bet.ini", "bet.reg_scaling",
          "bet.tag", "BUILD-INFO.txt", "catch.rep", "doitall.sh", "indepvar.rpt",
          "length.fit", "mfcl.cfg", "mfclo64", "plot-11.par.rep",
          "PROVENANCE.md", "README.txt", "run-final",
-         "standalone-final-evaluation.log", "temporary_tag_report",
-         "test_plot_output")
+         "standalone-final-evaluation.log", "test_plot_output")
 cp(key, "..")
