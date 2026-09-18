@@ -1,11 +1,13 @@
 library(TAF)
 
 # Download
+message("Downloading model results ... ", appendLF=FALSE)
 zipfile <- "bet-2026-diagnostic-standalone.zip"
 url <- file.path("https://github.com/PacificCommunity",
                  "ofp-sam-bet-2026-diagnostic/releases/download",
                  "diagnostic-standalone-2026.08.11", zipfile)
-download.file(url)
+download(url)
+message("done")
 
 # Unzip
 taf.unzip(zipfile, junkpaths=TRUE)
