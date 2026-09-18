@@ -19,3 +19,6 @@ key <- c("11.par", "bet.age_length", "bet.frq", "bet.ini", "bet.reg_scaling",
          "PROVENANCE.md", "README.txt", "run-final",
          "standalone-final-evaluation.log", "test_plot_output")
 cp(key, "..")
+
+# Move zip file to boot/data
+quiet <- file.rename(zipfile, file.path("..", zipfile))
